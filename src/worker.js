@@ -1,0 +1,19 @@
+import { defaultConfig } from './config.js';
+
+let config = structuredClone(defaultConfig);
+let step = 0;
+let values, nextValues, positions, groups, edges = [];
+let rngState = config.seed >>> 0;
+
+const clamp = v => Math.max(0, Math.min(1, v));
+function random(){ rngState = (rngState * 1664525 + 1013904223) >>> 0; return rngState / 4294967296; }
+function between(a,b){ return a + random() * (b-a); }
+function distance(i,j){ let s=0; for(let d=0;d<config.dimensions;d++){ const q=values[i*config.dimensions+d]-values[j*config.dimensions+d]; s+=q*q; } return Math.sqrt(s); }
+function rebuildEdges(){ edges=[]; for(let i=0;i<config.nodeCount;i++){ for(let j=i+1;j<config.nodeCount;j++){ const d=distance(i,j); if(d<config.rules.linkDistance && random()<config.rules.linkChance) edges.push(i,j,1-d/config.rules.linkDistance); } } }
+function analyse(){ const means=new Array(config.dimensions).fill(0), vars=new Array(config.dimensions).fill(0); for(let i=0;i<config.nodeCount;i++) for(let d=0;d<config.dimensions;d++) means[d]+=values[i*config.dimensions+d]/config.nodeCount; for(let i=0;i<config.nodeCount;i++) for(let d=0;d<config.dimensions;d++){ const q=values[i*config.dimensions+d]-means[d]; vars[d]+=q*q/config.nodeCount; } return {step,nodes:config.nodeCount,edgeCount:edges.length/3,means,variances:vars,density:(edges.length/3)/(config.nodeCount*(config.nodeCount-1)/2)}; }
+function emit(type='frame'){ postMessage({type,step,values:values.slice(),positions:positions.slice(),groups:groups.slice(),edges:new Float32Array(edges),analysis:analyse(),config}); }
+function reset(nextConfig=config){ config=structuredClone(nextConfig); rngState=config.seed>>>0; step=0; values=new Float32Array(config.nodeCount*config.dimensions); nextValues=new Float32Array(values.length); positions=new Float32Array(config.nodeCount*2); groups=new Uint8Array(config.nodeCount); let index=0; config.groups.forEach((group,g)=>{ for(let k=0;k<group.count && index<config.nodeCount;k++,index++){ groups[index]=g; for(let d=0;d<config.dimensions;d++){ const range=group.ranges[d]||[0,1]; values[index*config.dimensions+d]=between(range[0],range[1]); } const a=random()*Math.PI*2,r=45+g*100+random()*65; positions[index*2]=Math.cos(a)*r; positions[index*2+1]=Math.sin(a)*r; } }); while(index<config.nodeCount){ for(let d=0;d<config.dimensions;d++) values[index*config.dimensions+d]=random(); index++; } rebuildEdges(); emit('reset'); }
+function tick(count=1){ for(let n=0;n<count;n++){ const sums=new Float32Array(values.length), counts=new Uint16Array(config.nodeCount); for(let e=0;e<edges.length;e+=3){ const a=edges[e],b=edges[e+1]; counts[a]++;counts[b]++; for(let d=0;d<config.dimensions;d++){ sums[a*config.dimensions+d]+=values[b*config.dimensions+d]; sums[b*config.dimensions+d]+=values[a*config.dimensions+d]; } } for(let i=0;i<config.nodeCount;i++) for(let d=0;d<config.dimensions;d++){ const at=i*config.dimensions+d,v=values[at],mean=counts[i]?sums[at]/counts[i]:v; nextValues[at]=clamp(v+(mean-v)*config.rules.convergence+between(-config.rules.noise,config.rules.noise)); } values.set(nextValues); step++; if(step%config.rules.rebuildEvery===0) rebuildEdges(); } emit(step%config.analysisEvery===0?'analysis':'frame'); }
+function intervene({target='selected',nodeId=0,dimension=0,mode='add',value=0}){ const apply=i=>{ const at=i*config.dimensions+dimension; if(mode==='set') values[at]=clamp(value); else if(mode==='multiply') values[at]=clamp(values[at]*value); else values[at]=clamp(values[at]+value); }; if(target==='all') for(let i=0;i<config.nodeCount;i++) apply(i); else apply(Math.max(0,Math.min(config.nodeCount-1,nodeId))); rebuildEdges(); emit('intervention'); }
+onmessage=e=>{ const {type}=e.data; if(type==='init'||type==='reset') reset(e.data.config||config); if(type==='step') tick(e.data.count||1); if(type==='intervene') intervene(e.data); if(type==='snapshot') emit('snapshot'); };
+reset(config);
