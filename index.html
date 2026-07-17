@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
@@ -10,16 +10,16 @@
 <body>
   <canvas id="world"></canvas>
   <header class="hud top">
-    <div><strong>DSS</strong><span id="stepLabel">STEP 0</span></div>
+    <div class="brand"><strong>DSS</strong><select id="lensSelect" aria-label="Линза"></select><span id="stepLabel">STEP 0</span></div>
     <button id="resetBtn">Reset</button>
   </header>
   <aside id="stats" class="panel"></aside>
-  <div id="timeline" class="timeline">Waiting for first analysis…</div>
+  <div id="timeline" class="timeline">Ожидание первого анализа…</div>
   <section id="sheet" class="sheet hidden">
     <div class="grab"></div>
-    <div class="sheet-head"><strong>Intervention</strong><button id="closeSheet">×</button></div>
-    <label>P₁ delta <input id="deltaP1" type="range" min="-0.5" max="0.5" value="0.2" step="0.01"><output id="deltaOut">+0.20</output></label>
-    <button id="applyIntervention" class="primary">Apply to selected node</button>
+    <div class="sheet-head"><strong>Вмешательство</strong><button id="closeSheet">×</button></div>
+    <label><span id="interventionLabel">P₁ delta</span><input id="deltaP1" type="range" min="-0.5" max="0.5" value="0.2" step="0.01"><output id="deltaOut">+0.20</output></label>
+    <button id="applyIntervention" class="primary">Применить к выбранному узлу</button>
   </section>
   <nav class="controls">
     <button id="stepBtn" aria-label="Step">│▶</button>
